@@ -71,4 +71,3 @@ sudo bash labpod-release/scripts/install.sh --check
 
 - Install guide: https://docs.labpod.ai/operators/install/
 - Requirements: https://docs.labpod.ai/start/requirements/
-- License behavior: https://docs.labpod.ai/reference/licensing/
