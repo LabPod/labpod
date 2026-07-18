@@ -5,6 +5,21 @@ This repository publishes LabPod binary release artifacts. Source code is mainta
 LabPod is a single-node, multi-user GPU workspace manager for shared lab workstations. Product
 docs live at https://docs.labpod.ai.
 
+## Container images
+
+LabPod publishes a PyTorch + JupyterLab workspace image to the GitHub Container
+Registry. Browse image versions, manifests, and pull instructions on the
+[pytorch-jupyter package page](https://github.com/LabPod/labpod/pkgs/container/pytorch-jupyter).
+
+```bash
+podman pull ghcr.io/labpod/pytorch-jupyter:cu129
+```
+
+Available CUDA tags are `cu121`, `cu126`, and `cu129`. Images are published for
+Linux `amd64`; the host supplies the compatible NVIDIA driver. See the
+[image README](images/pytorch-jupyter/README.md) for the CUDA, PyTorch,
+architecture, and minimum-driver compatibility matrix.
+
 ## Install with curl
 
 Run the public installer on the target Linux GPU workstation:
