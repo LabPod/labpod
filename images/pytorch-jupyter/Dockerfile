@@ -7,16 +7,18 @@
 # owner under rootless Podman), no /home/jovyan remnants, WORKDIR /work.
 #
 # CUDA/torch pairing is supplied per tag by the build matrix:
-#   cu121 -> CUDA 12.1 base, torch cu121 wheels (Pascal+, driver >=525)
-#   cu126 -> CUDA 12.6 base, torch cu126 wheels (Pascal+, driver >=545/560)
-#   cu129 -> CUDA 12.9 base, torch cu129 wheels (sm_70+, driver >=575)
-# torch cu128/cu129 wheels dropped Pascal (sm_61); those tags need sm_70+.
+#   cu121 -> CUDA 12.1 / Ubuntu 22.04 base, torch cu121 wheels (sm_50--sm_90)
+#   cu126 -> CUDA 12.6 / Ubuntu 24.04 base, torch cu126 wheels (sm_50--sm_90)
+#   cu129 -> CUDA 12.9 / Ubuntu 24.04 base, torch cu129 wheels (sm_70--sm_120)
+# torch cu128/cu129 wheels dropped pre-Volta support; those tags need sm_70+.
 # Verify the torch/torchvision pins against the wheel index the first CI
 # run (older tags cap out at older torch: cu121 -> torch 2.5.1).
-ARG CUDA_BASE_IMAGE=docker.io/nvidia/cuda:12.6.3-runtime-ubuntu22.04
+ARG CUDA_BASE_IMAGE=docker.io/nvidia/cuda:12.6.3-runtime-ubuntu24.04
 FROM ${CUDA_BASE_IMAGE}
 
-ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive \
+    VIRTUAL_ENV=/opt/venv \
+    PATH="/opt/venv/bin:${PATH}"
 ARG TORCH_CUDA=cu126
 ARG TORCH_VERSION=2.8.0
 ARG TORCHVISION_VERSION=0.23.0
@@ -34,7 +36,7 @@ RUN apt-get update \
         nano \
         openssh-client \
         python3 \
-        python3-pip \
+        python3-venv \
         rsync \
         tmux \
         tree \
@@ -43,20 +45,18 @@ RUN apt-get update \
         wget \
     && rm -rf /var/lib/apt/lists/*
 
-RUN python3 -m pip install --no-cache-dir uv \
-    && uv_path="$(python3 -c 'import shutil; print(shutil.which("uv") or "")')" \
-    && test -n "$uv_path" \
-    && if [ "$uv_path" != "/usr/local/bin/uv" ]; then ln -sf "$uv_path" /usr/local/bin/uv; fi \
+RUN python3 -m venv "$VIRTUAL_ENV" \
+    && python3 -m pip install --no-cache-dir uv \
     && uv --version
 
 # PyTorch pinned to the matching wheel index so the bundled CUDA libs
 # track the image's CUDA base instead of floating with PyPI defaults.
-RUN uv pip install --system --no-cache \
+RUN uv pip install --no-cache \
         --index-url "https://download.pytorch.org/whl/${TORCH_CUDA}" \
         "torch==${TORCH_VERSION}" \
         "torchvision==${TORCHVISION_VERSION}"
 
-RUN uv pip install --system --no-cache \
+RUN uv pip install --no-cache \
         jupyterlab \
         ipywidgets \
         jupyter-resource-usage \
