@@ -16,6 +16,8 @@
 ARG CUDA_BASE_IMAGE=docker.io/nvidia/cuda:12.6.3-runtime-ubuntu24.04
 FROM ${CUDA_BASE_IMAGE}
 
+LABEL org.opencontainers.image.description="LabPod PyTorch + JupyterLab workspace image with CUDA, TensorBoard, and common scientific Python tools."
+
 ENV DEBIAN_FRONTEND=noninteractive \
     VIRTUAL_ENV=/opt/venv \
     PATH="/opt/venv/bin:${PATH}"
