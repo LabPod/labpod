@@ -7,8 +7,11 @@ docs live at https://docs.labpod.ai.
 
 ## Container images
 
-LabPod publishes a PyTorch + JupyterLab workspace image to the GitHub Container
-Registry. Browse image versions, manifests, and pull instructions on the
+LabPod publishes JupyterLab workspace images to the GitHub Container Registry.
+
+### PyTorch + JupyterLab
+
+Browse image versions, manifests, and pull instructions on the
 [pytorch-jupyter package page](https://github.com/LabPod/labpod/pkgs/container/pytorch-jupyter).
 
 ```bash
@@ -19,6 +22,21 @@ Available CUDA tags are `cu121`, `cu126`, and `cu129`. Images are published for
 Linux `amd64`; the host supplies the compatible NVIDIA driver. See the
 [image README](images/pytorch-jupyter/README.md) for the CUDA, PyTorch,
 architecture, and minimum-driver compatibility matrix.
+
+### TensorFlow + JupyterLab
+
+Browse image versions, manifests, and pull instructions on the
+[tensorflow-jupyter package page](https://github.com/LabPod/labpod/pkgs/container/tensorflow-jupyter).
+
+```bash
+podman pull ghcr.io/labpod/tensorflow-jupyter:cu125
+```
+
+`tensorflow[and-cuda]` bundles its own CUDA user-space, so the driver coupling is
+looser than PyTorch's — a single `cu125` tag runs on host driver `>= 525.60.13`.
+Images are published for Linux `amd64`; the host supplies the compatible NVIDIA
+driver. See the [image README](images/tensorflow-jupyter/README.md) for the
+CUDA, TensorFlow, architecture, and minimum-driver compatibility matrix.
 
 ## Install with curl
 
