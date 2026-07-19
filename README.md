@@ -38,6 +38,20 @@ Images are published for Linux `amd64`; the host supplies the compatible NVIDIA
 driver. See the [image README](images/tensorflow-jupyter/README.md) for the
 CUDA, TensorFlow, architecture, and minimum-driver compatibility matrix.
 
+### SciPy data science + JupyterLab (CPU)
+
+Browse image versions, manifests, and pull instructions on the
+[scipy-jupyter package page](https://github.com/LabPod/labpod/pkgs/container/scipy-jupyter).
+
+```bash
+podman pull ghcr.io/labpod/scipy-jupyter:py312
+```
+
+A **CPU-only** data-science image (NumPy/SciPy/pandas/scikit-learn/matplotlib/
+seaborn/bokeh + JupyterLab) — no CUDA, no host-driver requirement. Published for
+Linux `amd64`. See the [image README](images/scipy-jupyter/README.md) for the
+stack and Python line.
+
 ## Install with curl
 
 Run the public installer on the target Linux GPU workstation:
