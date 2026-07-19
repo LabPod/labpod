@@ -37,7 +37,7 @@ jobs:
         run: |
           echo "::warning::BUMP_PIN_TOKEN is not set — skipping. Create a fine-grained PAT with contents+pull-requests+workflows write on LabPod/labpod and add it as the BUMP_PIN_TOKEN secret to enable auto-bump PRs. Dependabot still handles base images and actions."
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: env.HAS_TOKEN == 'true'
         with:
           token: ${{ secrets.BUMP_PIN_TOKEN }}

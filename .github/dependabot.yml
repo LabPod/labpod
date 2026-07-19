@@ -15,6 +15,10 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: ci
+    groups:
+      actions:
+        patterns:
+          - "*"
 
   - package-ecosystem: docker
     directories:
@@ -28,3 +32,7 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: images
+    groups:
+      base-images:
+        patterns:
+          - "*"
