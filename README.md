@@ -52,6 +52,21 @@ seaborn/bokeh + JupyterLab) — no CUDA, no host-driver requirement. Published f
 Linux `amd64`. See the [image README](images/scipy-jupyter/README.md) for the
 stack and Python line.
 
+### PyTorch Demo (kitchen-sink showcase)
+
+Browse image versions, manifests, and pull instructions on the
+[pytorch-demo package page](https://github.com/LabPod/labpod/pkgs/container/pytorch-demo).
+
+```bash
+podman pull ghcr.io/labpod/pytorch-demo:cpu
+```
+
+The image behind LabPod's "PyTorch Demo Workspace" template — JupyterLab,
+TensorBoard, code-server, terminal, MLflow, and Aim in one workspace. The `cpu`
+tag runs on any host with no driver requirement (fast demo default); `cu121`,
+`cu126`, and `cu129` tags demo GPU allocation + monitoring. Published for Linux
+`amd64`. See the [image README](images/pytorch-demo/README.md) for the tag matrix.
+
 ## Install with curl
 
 Run the public installer on the target Linux GPU workstation:
