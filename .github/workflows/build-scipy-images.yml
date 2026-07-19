@@ -47,7 +47,7 @@ jobs:
           - tag: py312
             base: docker.io/ubuntu:24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Log in to GHCR
         if: github.event_name != 'pull_request'
