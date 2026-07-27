@@ -13,7 +13,11 @@ Handled pins:
                              (only the newest shared pin; the cu121 old-driver
                              line stays put)
   - tensorflow            -> build-tensorflow-images.yml (tf_version)
-  - code-server           -> images/pytorch-demo/Dockerfile (version + amd64/arm64 sha256)
+  - code-server           -> every Dockerfile in CODE_SERVER_DOCKERFILES
+                             (version + amd64/arm64 sha256). The pin is
+                             duplicated per image because the Dockerfiles share
+                             no base layer; bumping them together is what keeps
+                             the sha256 guard from going stale in one of them.
 
 No third-party imports: uses urllib + a tiny stable-version comparator so the
 script runs on a bare runner.
@@ -31,7 +35,11 @@ ROOT = Path(__file__).resolve().parent.parent
 WF = ROOT / ".github" / "workflows"
 PYTORCH_WFS = [WF / "build-pytorch-images.yml", WF / "build-pytorch-demo-images.yml"]
 TF_WF = WF / "build-tensorflow-images.yml"
-DEMO_DOCKERFILE = ROOT / "images" / "pytorch-demo" / "Dockerfile"
+CODE_SERVER_DOCKERFILES = [
+    ROOT / "images" / "pytorch-demo" / "Dockerfile",
+    ROOT / "images" / "pytorch-jupyter" / "Dockerfile",
+    ROOT / "images" / "tensorflow-jupyter" / "Dockerfile",
+]
 
 _STABLE_RE = re.compile(r"^\d+(\.\d+)*$")
 
@@ -117,19 +125,30 @@ def main():
         if files:
             changes.append(f"tensorflow {cur_tf} -> {new_tf} ({', '.join(files)})")
 
-    # code-server (Dockerfile ARG version + both arch sha256).
-    df = DEMO_DOCKERFILE.read_text()
-    cur_cs = re.search(r"CODE_SERVER_VERSION=([0-9.]+)", df).group(1)
+    # code-server (Dockerfile ARG version + both arch sha256). Every carrying
+    # Dockerfile is rewritten in one pass: a partial bump would leave a stale
+    # sha256 that only fails much later, at the next build of that one image.
     new_cs = latest_code_server()
-    if is_stable(new_cs) and version_key(new_cs) > version_key(cur_cs):
-        base = f"https://github.com/coder/code-server/releases/download/v{new_cs}"
-        sha_amd64 = sha256_of(f"{base}/code-server_{new_cs}_amd64.deb")
-        sha_arm64 = sha256_of(f"{base}/code-server_{new_cs}_arm64.deb")
-        df = re.sub(r"(CODE_SERVER_VERSION=)[0-9.]+", rf"\g<1>{new_cs}", df)
-        df = re.sub(r"(CODE_SERVER_SHA256_AMD64=)[0-9a-f]{64}", rf"\g<1>{sha_amd64}", df)
-        df = re.sub(r"(CODE_SERVER_SHA256_ARM64=)[0-9a-f]{64}", rf"\g<1>{sha_arm64}", df)
-        DEMO_DOCKERFILE.write_text(df)
-        changes.append(f"code-server {cur_cs} -> {new_cs} (images/pytorch-demo/Dockerfile, sha256 recomputed)")
+    if is_stable(new_cs):
+        stale = []
+        for path in CODE_SERVER_DOCKERFILES:
+            m = re.search(r"CODE_SERVER_VERSION=([0-9.]+)", path.read_text())
+            if not m:
+                raise SystemExit(f"no CODE_SERVER_VERSION pin in {path}")
+            if version_key(new_cs) > version_key(m.group(1)):
+                stale.append((path, m.group(1)))
+        if stale:
+            base = f"https://github.com/coder/code-server/releases/download/v{new_cs}"
+            sha_amd64 = sha256_of(f"{base}/code-server_{new_cs}_amd64.deb")
+            sha_arm64 = sha256_of(f"{base}/code-server_{new_cs}_arm64.deb")
+            for path, cur_cs in stale:
+                df = path.read_text()
+                df = re.sub(r"(CODE_SERVER_VERSION=)[0-9.]+", rf"\g<1>{new_cs}", df)
+                df = re.sub(r"(CODE_SERVER_SHA256_AMD64=)[0-9a-f]{64}", rf"\g<1>{sha_amd64}", df)
+                df = re.sub(r"(CODE_SERVER_SHA256_ARM64=)[0-9a-f]{64}", rf"\g<1>{sha_arm64}", df)
+                path.write_text(df)
+                rel = path.relative_to(ROOT).as_posix()
+                changes.append(f"code-server {cur_cs} -> {new_cs} ({rel}, sha256 recomputed)")
 
     summary = "\n".join(f"- {c}" for c in changes)
     print(summary if changes else "No pin updates available.")

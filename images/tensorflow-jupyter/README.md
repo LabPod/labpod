@@ -1,8 +1,8 @@
 # TensorFlow + JupyterLab image
 
 This directory builds LabPod's TensorFlow + JupyterLab image. It is a
-long-running workspace image: JupyterLab and TensorBoard are started on demand,
-while the image's default process is `sleep infinity`.
+long-running workspace image: JupyterLab, TensorBoard, and code-server are
+started on demand, while the image's default process is `sleep infinity`.
 
 ## Published variants
 
@@ -38,6 +38,13 @@ specific GPU.
 - `jupyterlab` and the scientific stack intentionally float between scheduled
   rebuilds. The TensorFlow version above is pinned; its bundled CUDA wheels are
   resolved from the `and-cuda` extra at build time.
+- code-server (browser VS Code, container port `8080`) is installed from the
+  upstream `.deb`, pinned by version and verified against a sha256 recorded in
+  the Dockerfile. It bundles its own Node runtime and does not use `/opt/venv`.
+  `scripts/bump-image-pins.py` bumps the pin here, in the PyTorch image, and in
+  the demo image together. code-server writes user data (settings, installed
+  extensions) under `$HOME`, so those persist only when the workspace's home
+  directory is on persistent storage.
 - After allocating a GPU, confirm `tf.config.list_physical_devices('GPU')` lists
   it before starting long-running training — an empty list means TensorFlow fell
   back to CPU.

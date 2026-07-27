@@ -1,8 +1,8 @@
 # PyTorch + JupyterLab image
 
 This directory builds LabPod's PyTorch + JupyterLab image. It is a
-long-running workspace image: JupyterLab and TensorBoard are started on demand,
-while the image's default process is `sleep infinity`.
+long-running workspace image: JupyterLab, TensorBoard, and code-server are
+started on demand, while the image's default process is `sleep infinity`.
 
 ## Published variants
 
@@ -39,6 +39,13 @@ restrictions; use the table values for the normal supported path.
   workflow.
 - `jupyterlab` and the scientific stack intentionally float between scheduled
   rebuilds. The CUDA, PyTorch, and torchvision versions above are pinned.
+- code-server (browser VS Code, container port `8080`) is installed from the
+  upstream `.deb`, pinned by version and verified against a sha256 recorded in
+  the Dockerfile. It bundles its own Node runtime and does not use `/opt/venv`.
+  `scripts/bump-image-pins.py` bumps the pin here, in the TensorFlow image, and
+  in the demo image together. code-server writes user data (settings, installed
+  extensions) under `$HOME`, so those persist only when the workspace's home
+  directory is on persistent storage.
 
 For driver compatibility, consult NVIDIA's [CUDA compatibility guide](https://docs.nvidia.com/deploy/cuda-compatibility/) and the [CUDA 12.1.1](https://docs.nvidia.com/cuda/archive/12.1.1/cuda-toolkit-release-notes/index.html), [CUDA 12.6.3](https://docs.nvidia.com/cuda/archive/12.6.3/cuda-toolkit-release-notes/index.html), and [CUDA 12.9.1](https://docs.nvidia.com/cuda/archive/12.9.1/cuda-toolkit-release-notes/index.html) release notes.
 For GPU compute capabilities, see NVIDIA's [CUDA GPUs reference](https://developer.nvidia.com/cuda-gpus).

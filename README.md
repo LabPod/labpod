@@ -18,6 +18,7 @@ Browse image versions, manifests, and pull instructions on the
 podman pull ghcr.io/labpod/pytorch-jupyter:cu129
 ```
 
+JupyterLab, TensorBoard, and code-server ship in the image and start on demand.
 Available CUDA tags are `cu121`, `cu126`, and `cu129`. Images are published for
 Linux `amd64`; the host supplies the compatible NVIDIA driver. See the
 [image README](images/pytorch-jupyter/README.md) for the CUDA, PyTorch,
@@ -32,6 +33,7 @@ Browse image versions, manifests, and pull instructions on the
 podman pull ghcr.io/labpod/tensorflow-jupyter:cu125
 ```
 
+JupyterLab, TensorBoard, and code-server ship in the image and start on demand.
 `tensorflow[and-cuda]` bundles its own CUDA user-space, so the driver coupling is
 looser than PyTorch's — a single `cu125` tag runs on host driver `>= 525.60.13`.
 Images are published for Linux `amd64`; the host supplies the compatible NVIDIA
