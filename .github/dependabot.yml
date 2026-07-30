@@ -26,6 +26,7 @@ updates:
       - /images/tensorflow-jupyter
       - /images/scipy-jupyter
       - /images/pytorch-demo
+      - /images/code-server
     schedule:
       interval: weekly
       day: monday

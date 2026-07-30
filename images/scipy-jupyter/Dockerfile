@@ -57,6 +57,12 @@ RUN uv pip install --no-cache \
         seaborn \
         bokeh
 
+# LabPod starts every workspace as its Linux owner and injects that user's
+# passwd entry. Ubuntu bases may reserve UID 1000 for `ubuntu`; an existing
+# image entry wins over Podman's injection and redirects HOME. Leave UID 1000
+# unassigned in every published LabPod image.
+RUN sed -i -E '/^[^:]*:[^:]*:1000:/d' /etc/passwd
+
 WORKDIR /work
 EXPOSE 8888
 

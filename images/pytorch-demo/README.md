@@ -30,6 +30,9 @@ compatibility floor (`>= 525.60.13`).
 
 ## Runtime model
 
+- UID 1000 is deliberately absent from `/etc/passwd`. LabPod injects the
+  workspace owner's account and persistent HOME at runtime; an image account
+  at that UID would take precedence and make the HOME disposable.
 - The `cu<xx>` images contain CUDA user-space libraries, not an NVIDIA kernel
   driver; the host supplies a compatible driver and makes the GPU available to
   the rootless Podman container. The `cpu` image needs neither.

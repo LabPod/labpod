@@ -9,6 +9,24 @@ docs live at https://docs.labpod.ai.
 
 LabPod publishes JupyterLab workspace images to the GitHub Container Registry.
 
+Every managed workspace image leaves UID 1000 unassigned in `/etc/passwd`.
+LabPod supplies the workspace owner's account and persistent home at runtime, so
+an image account must not take precedence over that identity.
+
+### Code Server
+
+Browse image versions, manifests, and pull instructions on the
+[code-server package page](https://github.com/LabPod/labpod/pkgs/container/code-server).
+
+```bash
+podman pull ghcr.io/labpod/code-server:latest
+```
+
+This is the managed image behind LabPod's Code Server template. It contains
+code-server and stays alive until LabPod starts the editor on demand. The image
+is published for Linux `amd64`; see the [image README](images/code-server/README.md)
+for its runtime model.
+
 ### PyTorch + JupyterLab
 
 Browse image versions, manifests, and pull instructions on the

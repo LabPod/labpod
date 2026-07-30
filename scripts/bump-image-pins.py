@@ -39,6 +39,7 @@ CODE_SERVER_DOCKERFILES = [
     ROOT / "images" / "pytorch-demo" / "Dockerfile",
     ROOT / "images" / "pytorch-jupyter" / "Dockerfile",
     ROOT / "images" / "tensorflow-jupyter" / "Dockerfile",
+    ROOT / "images" / "code-server" / "Dockerfile",
 ]
 
 _STABLE_RE = re.compile(r"^\d+(\.\d+)*$")
