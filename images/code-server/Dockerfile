@@ -5,7 +5,7 @@
 # Code Server template image, not coder/code-server:latest: it deliberately
 # leaves UID 1000 unassigned so LabPod can inject the workspace owner's
 # persistent HOME entry.
-FROM docker.io/ubuntu:24.04
+FROM docker.io/ubuntu:26.04
 
 LABEL org.opencontainers.image.description="LabPod code-server workspace image that runs as the workspace owner."
 
