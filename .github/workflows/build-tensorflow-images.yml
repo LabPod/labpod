@@ -47,6 +47,11 @@ jobs:
           - tag: cu125
             base: docker.io/nvidia/cuda:12.5.1-runtime-ubuntu24.04
             tf_version: 2.21.0
+            # Pinned per tag because tensorflow[and-cuda] leaves cuDNN a range
+            # and its newest members dropped Pascal (sm_6.x), breaking every
+            # cuDNN op at runtime. See the Dockerfile comment and
+            # pkgpl/labpod#1171.
+            cudnn_version: 9.10.2.21
     steps:
       - uses: actions/checkout@v7
 
@@ -73,3 +78,4 @@ jobs:
           build-args: |
             CUDA_BASE_IMAGE=${{ matrix.base }}
             TF_VERSION=${{ matrix.tf_version }}
+            CUDNN_VERSION=${{ matrix.cudnn_version }}

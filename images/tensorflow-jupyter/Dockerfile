@@ -11,8 +11,10 @@
 # CUDA pairing differs from the PyTorch image: tensorflow[and-cuda] bundles
 # its CUDA user-space through pip nvidia-* wheels, so the effective CUDA
 # runtime is pinned by the TensorFlow version, not by a per-CUDA wheel index.
-# The nvidia/cuda base only supplies a consistent system + forward-compat
-# layout; TensorFlow loads its own bundled CUDA 12.x libs from the venv.
+# The nvidia/cuda base supplies a consistent system + forward-compat layout;
+# TensorFlow loads most of its CUDA 12.x libs from the venv, but not all of
+# them — cuSPARSE resolves to the base image's copy at runtime, so the base
+# must stay a `-runtime` tag rather than a smaller `-base` one.
 # The tag names the CUDA floor those wheels require:
 #   cu125 -> TensorFlow 2.21 / and-cuda wheels (CUDA 12.5+, cuDNN 9.3), Ubuntu 24.04 base
 # tensorflow[and-cuda] supports host driver >= 525.60.13 via CUDA 12 minor-
@@ -27,6 +29,23 @@ ENV DEBIAN_FRONTEND=noninteractive \
     VIRTUAL_ENV=/opt/venv \
     PATH="/opt/venv/bin:${PATH}"
 ARG TF_VERSION=2.21.0
+# cuDNN is pinned because tensorflow[and-cuda] only constrains it to a range
+# (>=9.3.0.75,<10.0) and the newest version in that range dropped Pascal
+# (compute capability 6.x). With cuDNN 9.24.0 every cuDNN op on a Pascal GPU
+# fails at runtime -- conv2d, keras Conv2D and max_pool2d all raise
+# "No algorithm worked! ... <unknown cudnn status: 5003>" -- while matmul,
+# nvidia-smi and tf.config.list_physical_devices("GPU") all still succeed, so
+# nothing short of running a real convolution detects it. Measured on an
+# NVIDIA TITAN Xp (sm_61): 9.24.0.43 fails, 9.10.2.21 works. cuDNN was the
+# only unpinned input in this image, which made the same Dockerfile produce a
+# working image and then a broken one with no commit in between -- the weekly
+# scheduled rebuild shipped the regression. See pkgpl/labpod#1171.
+#
+# Raise this pin only against a real pre-Volta GPU, or after deciding those
+# GPUs are out of scope (which needs a second tag + an autoCudaTags entry on
+# the LabPod side, not a silent bump). scripts/bump-image-pins.py deliberately
+# does not know about this pin.
+ARG CUDNN_VERSION=9.10.2.21
 ARG CODE_SERVER_VERSION=4.118.0
 ARG CODE_SERVER_SHA256_AMD64=fe2988f313c9047c1e1ccccee10ad8ccf2813b66a02c146e7d4fd2a3f7e2dc81
 ARG CODE_SERVER_SHA256_ARM64=81fa5486a674428507cfb68025764646bdb99c345b8ca798fd94a13ea056eeb3
@@ -59,7 +78,22 @@ RUN python3 -m venv "$VIRTUAL_ENV" \
 
 # TensorFlow's and-cuda extra pulls the matching nvidia-* CUDA wheels, so the
 # bundled CUDA runtime tracks the TensorFlow version instead of PyPI defaults.
-RUN uv pip install --no-cache "tensorflow[and-cuda]==${TF_VERSION}"
+# The cuDNN pin goes to the resolver alongside TensorFlow rather than being
+# force-installed afterwards, so a future TF whose cuDNN floor rises above the
+# pin fails the build loudly instead of silently resolving past it.
+RUN uv pip install --no-cache "tensorflow[and-cuda]==${TF_VERSION}" \
+        "nvidia-cudnn-cu12==${CUDNN_VERSION}"
+
+# cuDNN is the one dependency whose version silently decides whether this image
+# works on Pascal, so assert the resolved version rather than trusting the
+# resolver. Runs on any machine -- it reads metadata, no GPU needed -- which is
+# what makes it a usable CI gate against the weekly rebuild drifting again.
+RUN installed="$(python3 -c 'import importlib.metadata as m; print(m.version("nvidia-cudnn-cu12"))')" \
+    && if [ "$installed" != "${CUDNN_VERSION}" ]; then \
+         echo "cuDNN pin violated: wanted ${CUDNN_VERSION}, resolved $installed" >&2; \
+         exit 1; \
+       fi \
+    && echo "cuDNN pinned at $installed"
 
 # TensorBoard ships with TensorFlow, so it is not installed separately.
 RUN uv pip install --no-cache \
