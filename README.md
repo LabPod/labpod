@@ -39,8 +39,8 @@ NVIDIA GPU driver itself.
 
 If your change-control process does not allow `curl | bash`, download the
 release assets first, verify them, extract the tarball, then run the packaged
-installer. This manual tarball flow requires LabPod v0.4.1 or newer; older
-release tags do not provide all of the signed assets used below.
+installer. This flow installs the latest release; older tags predate some of
+the signed assets it verifies.
 
 ```bash
 # Run the flow in a subshell so a failed verification stops the install
@@ -50,14 +50,14 @@ set -e
 
 TARBALL="labpod-linux-x86_64.tar.gz"
 
-# Resolve "latest" to a concrete tag once, so every asset comes from the same
-# release even if a new version is published mid-download. Set BASE yourself
-# to pin a different release.
-if [ -z "${BASE:-}" ]; then
-  latest_url="$(curl -fsSL -o /dev/null -w '%{url_effective}' \
-    https://github.com/LabPod/labpod/releases/latest)"
-  BASE="https://github.com/LabPod/labpod/releases/download/${latest_url##*/}"
-fi
+# Resolve "latest" to a concrete tag once, so every asset below comes from the
+# same release even if a new version is published mid-download. The resolved
+# tag is printed so you can record which release this host received.
+latest_url="$(curl -fsSL -o /dev/null -w '%{url_effective}' \
+  https://github.com/LabPod/labpod/releases/latest)"
+TAG="${latest_url##*/}"
+BASE="https://github.com/LabPod/labpod/releases/download/${TAG}"
+echo "installing LabPod ${TAG}"
 
 curl -fLO "${BASE}/${TARBALL}"
 curl -fLO "${BASE}/${TARBALL}.sig"
@@ -130,14 +130,6 @@ sudo bash labpod-release/scripts/install.sh
 )
 ```
 
-To install a pinned version from tarball assets, set `BASE` to a versioned
-release URL for v0.4.1 or newer before running the block above:
-
-```bash
-# Replace v0.4.1 with the desired tag (v0.4.1 or newer).
-BASE=https://github.com/LabPod/labpod/releases/download/v0.4.1
-```
-
 The packaged installer accepts the host-setup options the curl installer passes
 through, such as `--check`, `--skip-app`, `--skip-socket`, and `--with-hami`:
 
@@ -147,10 +139,10 @@ sudo bash labpod-release/scripts/install.sh --check
 
 `--version` is not among them: the curl front-end consumes that flag itself to
 choose which release to download, and a release tarball is already one specific
-release — set `BASE` above to choose it. The packaged installer rejects unknown
-options with `unknown arg: --version` and exit status 2. To assert which release
-you are installing, v0.4.1 and newer accept `--expected-version`, which verifies
-the bundled binary reports the requested tag:
+release. The packaged installer rejects unknown options with
+`unknown arg: --version` and exit status 2. To have it confirm which release it
+is installing, pass the tag the block printed to `--expected-version`, which
+checks that the bundled binary reports that tag:
 
 ```bash
 sudo bash labpod-release/scripts/install.sh --expected-version v0.4.1
