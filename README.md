@@ -39,16 +39,42 @@ NVIDIA GPU driver itself.
 
 If your change-control process does not allow `curl | bash`, download the
 release assets first, verify them, extract the tarball, then run the packaged
-installer:
+installer. This manual tarball flow supports LabPod v0.4.1 or newer; older tags
+do not provide all of the signed assets it verifies.
 
 ```bash
-BASE="https://github.com/LabPod/labpod/releases/latest/download"
+# Run the flow in a subshell so a failed verification stops the install
+# without terminating an interactive shell.
+(
+set -e
 
-curl -fLO "${BASE}/labpod-linux-x86_64.tar.gz"
-curl -fLO "${BASE}/labpod-linux-x86_64.tar.gz.sig"
+TARBALL="labpod-linux-x86_64.tar.gz"
+
+# Resolve "latest" to a concrete tag once, so every asset comes from the same
+# release even if a new version is published mid-download. Set BASE yourself
+# to pin a v0.4.1-or-newer release instead.
+if [ -z "${BASE:-}" ]; then
+  latest_url="$(curl -fsSL -o /dev/null -w '%{url_effective}' \
+    https://github.com/LabPod/labpod/releases/latest)"
+  BASE="https://github.com/LabPod/labpod/releases/download/${latest_url##*/}"
+fi
+BASE="${BASE%/}"
+TAG="${BASE##*/}"
+# BASE must end in the release tag, because the tag is what gets handed to
+# --expected-version below. Catch a tagless BASE here rather than after the
+# download and extraction.
+printf '%s\n' "${TAG}" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$' || {
+  echo "BASE must end in a release tag, e.g." >&2
+  echo "  https://github.com/LabPod/labpod/releases/download/v0.4.1" >&2
+  echo "(got: ${BASE})" >&2
+  exit 1
+}
+echo "installing LabPod ${TAG}"
+
+curl -fLO "${BASE}/${TARBALL}"
+curl -fLO "${BASE}/${TARBALL}.sig"
 curl -fLO "${BASE}/SHA256SUMS"
-
-sha256sum -c SHA256SUMS
+curl -fLO "${BASE}/SHA256SUMS.sig"
 
 cat > labpod-artifact-pub.pem <<'EOF'
 -----BEGIN PUBLIC KEY-----
@@ -57,26 +83,88 @@ D8mP4mNRCYrqniXLDAkDFbpGaMw6WqPBiCQUVqyvDzyL+pADdJTAdxcUSw==
 -----END PUBLIC KEY-----
 EOF
 
+# The signatures are the root of trust, so verify them before reading either
+# file. Both the tarball and the asset manifest are signed with this key.
 openssl dgst -sha256 \
   -verify labpod-artifact-pub.pem \
-  -signature labpod-linux-x86_64.tar.gz.sig \
-  labpod-linux-x86_64.tar.gz
+  -signature "${TARBALL}.sig" \
+  "${TARBALL}"
+openssl dgst -sha256 \
+  -verify labpod-artifact-pub.pem \
+  -signature SHA256SUMS.sig \
+  SHA256SUMS
 
-mkdir labpod-release
-tar -xzf labpod-linux-x86_64.tar.gz -C labpod-release
+# SHA256SUMS also covers the CLI binaries, which this flow does not download.
+# Read exactly the tarball's entry rather than running `sha256sum -c` over the
+# whole file, so a manifest entry for an unrelated local asset cannot stand in
+# for a missing tarball entry.
+tarball_checksum="$(
+  awk -v f="${TARBALL}" '
+    {
+      sub(/\r$/, "")
+      name = $2
+      sub(/^\*/, "", name)
+      sub(/^.*\//, "", name)
+      if (name == f) {
+        if (count && $1 != hash) conflict = 1
+        count++
+        hash = $1
+      }
+    }
+    END {
+      if (!count) {
+        print "SHA256SUMS has no entry for " f > "/dev/stderr"
+        exit 1
+      }
+      if (conflict) {
+        print "SHA256SUMS has conflicting checksums for " f > "/dev/stderr"
+        exit 1
+      }
+      if (length(hash) != 64 || hash !~ /^[[:xdigit:]]+$/) {
+        print "SHA256SUMS has a malformed SHA-256 for " f > "/dev/stderr"
+        exit 1
+      }
+      print hash
+    }
+  ' SHA256SUMS
+)" || exit 1
+printf '%s  %s\n' "${tarball_checksum}" "${TARBALL}" | sha256sum -c -
 
-sudo bash labpod-release/scripts/install.sh
+# Extract into a new directory so files from an older release cannot survive
+# next to the installer that is about to run.
+mkdir labpod-release || {
+  echo "labpod-release/ already exists; remove it before extracting" >&2
+  exit 1
+}
+tar -xzf "${TARBALL}" -C labpod-release
+
+sudo bash labpod-release/scripts/install.sh --expected-version "${TAG}"
+)
 ```
 
-To install a pinned version from tarball assets, set `BASE` to a versioned
-release URL such as
-`https://github.com/LabPod/labpod/releases/download/v0.1.0`.
+To pin a supported version, set `BASE` to its release URL before running the
+block above:
 
-You can pass the same installer options after the script path, for example:
+```bash
+BASE=https://github.com/LabPod/labpod/releases/download/v0.4.1
+```
+
+The packaged installer accepts the host-setup options the curl installer passes
+through, such as `--check`, `--skip-app`, `--skip-socket`, and `--with-hami`:
 
 ```bash
 sudo bash labpod-release/scripts/install.sh --check
 ```
+
+`--version` is not among them: the curl front-end consumes that flag itself to
+choose which release to download, and a release tarball is already one specific
+release. The packaged installer rejects unknown options with
+`unknown arg: --version` and exit status 2. The block instead passes the tag it
+resolved to `--expected-version`, which confirms that the bundled binary reports
+the intended release before installation.
+
+Run `sudo bash labpod-release/scripts/install.sh --help` for the full option
+list.
 
 ## More documentation
 
