@@ -62,9 +62,28 @@ openssl dgst -sha256 \
   labpod-linux-x86_64.tar.gz
 
 # SHA256SUMS also covers the CLI binaries, which this flow does not download.
-# --ignore-missing scopes the check to the files you actually fetched; it still
-# fails if the tarball's hash is wrong or its entry is absent.
-sha256sum --ignore-missing -c SHA256SUMS
+# Extract exactly one checksum for the tarball so an unrelated local asset
+# cannot make the verification succeed when the tarball entry is absent.
+tarball_checksum="$(
+  awk -v f="labpod-linux-x86_64.tar.gz" '
+    {
+      name = $2
+      sub(/^\*/, "", name)
+      if (name == f) {
+        count++
+        hash = $1
+      }
+    }
+    END {
+      if (count != 1) exit 1
+      print hash
+    }
+  ' SHA256SUMS
+)" || {
+  echo "SHA256SUMS must contain exactly one entry for labpod-linux-x86_64.tar.gz" >&2
+  exit 1
+}
+printf '%s  %s\n' "$tarball_checksum" "labpod-linux-x86_64.tar.gz" | sha256sum -c -
 
 mkdir -p labpod-release
 tar -xzf labpod-linux-x86_64.tar.gz -C labpod-release
