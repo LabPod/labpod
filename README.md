@@ -39,7 +39,8 @@ NVIDIA GPU driver itself.
 
 If your change-control process does not allow `curl | bash`, download the
 release assets first, verify them, extract the tarball, then run the packaged
-installer:
+installer. This manual tarball flow requires LabPod v0.4.1 or newer; older
+release tags do not provide all of the signed assets used below.
 
 ```bash
 # Run the flow in a subshell so a failed verification stops the install
@@ -107,7 +108,7 @@ tarball_checksum="$(
         print "SHA256SUMS has conflicting checksums for " f > "/dev/stderr"
         exit 1
       }
-      if (hash !~ /^[0-9a-fA-F]{64}$/) {
+      if (length(hash) != 64 || hash !~ /^[[:xdigit:]]+$/) {
         print "SHA256SUMS has a malformed SHA-256 for " f > "/dev/stderr"
         exit 1
       }
@@ -130,10 +131,11 @@ sudo bash labpod-release/scripts/install.sh
 ```
 
 To install a pinned version from tarball assets, set `BASE` to a versioned
-release URL before running the block above:
+release URL for v0.4.1 or newer before running the block above:
 
 ```bash
-BASE=https://github.com/LabPod/labpod/releases/download/v0.x.y
+# Replace v0.4.1 with the desired tag (v0.4.1 or newer).
+BASE=https://github.com/LabPod/labpod/releases/download/v0.4.1
 ```
 
 The packaged installer accepts the host-setup options the curl installer passes
@@ -147,11 +149,11 @@ sudo bash labpod-release/scripts/install.sh --check
 choose which release to download, and a release tarball is already one specific
 release — set `BASE` above to choose it. The packaged installer rejects unknown
 options with `unknown arg: --version` and exit status 2. To assert which release
-you are installing, pass the tag to `--expected-version`, which verifies the
-bundled binary reports it:
+you are installing, v0.4.1 and newer accept `--expected-version`, which verifies
+the bundled binary reports the requested tag:
 
 ```bash
-sudo bash labpod-release/scripts/install.sh --expected-version v0.x.y
+sudo bash labpod-release/scripts/install.sh --expected-version v0.4.1
 ```
 
 Run `sudo bash labpod-release/scripts/install.sh --help` for the full option
