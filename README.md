@@ -15,9 +15,14 @@ pull references remain under `ghcr.io/labpod/*`.
 
 ## Release assets
 
-Every release publishes the server archive `labpod-linux-x86_64.tar.gz`, the
-standalone CLI binaries, a `SHA256SUMS` manifest, and detached ECDSA-P256
-signatures.
+Every release publishes the server archive `labpod-linux-x86_64.tar.gz`, a
+detached ECDSA-P256 signature for that archive, and a `SHA256SUMS` manifest
+covering the release assets.
+
+Standalone CLI binaries are published from v0.3.0 onward. A detached signature
+for `SHA256SUMS` is published from v0.4.1 onward; in earlier releases the
+manifest is unsigned, so the server archive is the only asset the signing key
+authenticates. Verifying a downloaded asset is documented in the install guide.
 
 ## Installing
 
@@ -31,32 +36,6 @@ It downloads a release from this repository, verifies it against a signing key
 embedded in the script, and runs the packaged installer. Options, pinned
 releases, and the change-control flow that avoids piping into a shell are
 documented in the install guide: https://docs.labpod.ai/operators/install/
-
-## Verifying the installer
-
-The signing key that anchors every artifact published here is carried inside
-that installer, so a substituted installer would carry a substituted key. This
-repository is a separate channel from the site serving the script, which is
-what makes the check below meaningful. Confirm the copy you downloaded before
-running it:
-
-```bash
-curl -fsSL https://labpod.ai/install.sh -o labpod-install.sh
-
-awk '/BEGIN PUBLIC KEY/{p=1} p{print} /END PUBLIC KEY/{if(p) exit}' labpod-install.sh \
-  | sed 's/^[^-]*-----BEGIN/-----BEGIN/; s/-----END PUBLIC KEY-----.*/-----END PUBLIC KEY-----/' \
-  | openssl pkey -pubin -outform DER \
-  | sha256sum
-```
-
-That must print:
-
-```
-811dcb94b2641574e62931782fafa93f863f608018d099d118b6d38f3b69024e
-```
-
-A different value means the script did not come from us — stop, and do not run
-it.
 
 ## More documentation
 
