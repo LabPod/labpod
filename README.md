@@ -38,76 +38,57 @@ NVIDIA GPU driver itself.
 ## Install without piping to bash
 
 If your change-control process does not allow `curl | bash`, download the
-public bootstrap to a file, review that file, then execute it. This uses the
-same signature, checksum, archive-member, and temporary-extraction checks as
-the piped installer and the in-app updater, without maintaining a second copy
-of the signing key or verification logic in this README.
+public bootstrap to a file, verify it, review it, then execute it. It performs
+the same signature, checksum, archive-member, and temporary-extraction checks
+as the piped installer and the in-app updater.
 
 ```bash
 curl -fsSL https://labpod.ai/install.sh -o labpod-install.sh
+```
 
+The bootstrap carries the release signing key, and everything it verifies is
+anchored to that key. Confirm the copy you downloaded carries the expected one
+before running it:
+
+```bash
+awk '/BEGIN PUBLIC KEY/{p=1} p{print} /END PUBLIC KEY/{if(p) exit}' labpod-install.sh \
+  | sed 's/^[^-]*-----BEGIN/-----BEGIN/; s/-----END PUBLIC KEY-----.*/-----END PUBLIC KEY-----/' \
+  | openssl pkey -pubin -outform DER \
+  | sha256sum
+```
+
+That must print:
+
+```
+811dcb94b2641574e62931782fafa93f863f608018d099d118b6d38f3b69024e
+```
+
+A different value means the script did not come from us — stop, and do not run
+it. Then review and run:
+
+```bash
 # Review the complete script with your normal editor or pager.
 less labpod-install.sh
 
 # Check what the installer would do without changing the host.
-sudo bash ./labpod-install.sh --check
+sudo bash ./labpod-install.sh --version v0.x.y --check
 
-# Install the latest release.
-sudo bash ./labpod-install.sh
+# Install that same release.
+sudo bash ./labpod-install.sh --version v0.x.y
 ```
 
-To install a pinned release or pass a host-setup option, add it after the
-script path:
+Pass the same `--version` to both commands. Without it each run independently
+resolves the latest release, so a release published between the two would be
+installed without its dry run ever having been reviewed. Omit `--version`
+entirely only if installing whatever is current is acceptable.
+
+Any other option is passed through to the packaged installer, for example:
 
 ```bash
-sudo bash ./labpod-install.sh --version v0.4.1
 sudo bash ./labpod-install.sh --skip-app
 ```
 
-## Install from an offline release mirror
-
-For an air-gapped workstation, stage the bootstrap and its four signed release
-assets on a connected Linux machine. Use a concrete tag so every file belongs
-to one immutable release:
-
-```bash
-TAG=v0.4.1
-MIRROR=labpod-offline
-ASSET_DIR="${MIRROR}/download/${TAG}"
-BASE="https://github.com/LabPod/labpod/releases/download/${TAG}"
-
-mkdir -p "${ASSET_DIR}"
-curl -fsSL https://labpod.ai/install.sh -o "${MIRROR}/install.sh"
-for asset in \
-  labpod-linux-x86_64.tar.gz \
-  labpod-linux-x86_64.tar.gz.sig \
-  SHA256SUMS \
-  SHA256SUMS.sig
-do
-  curl -fL "${BASE}/${asset}" -o "${ASSET_DIR}/${asset}"
-done
-```
-
-Transfer the whole `labpod-offline/` directory to the workstation, review
-`install.sh`, then point that same bootstrap at the local mirror:
-
-```bash
-TAG=v0.4.1
-MIRROR="$(realpath labpod-offline)"
-
-sudo env LABPOD_BOOTSTRAP_RELEASES_BASE="file://${MIRROR}" \
-  bash "${MIRROR}/install.sh" --version "${TAG}"
-```
-
-The bootstrap verifies the release archive against its detached ECDSA-P256
-signature, checks the archive against its `SHA256SUMS` entry, validates the
-archive members, extracts into a temporary directory, and only then runs the
-packaged installer. Because it reads a single manifest entry and rebuilds the
-line it checks, the archive's own signature is what establishes authenticity.
-
-`SHA256SUMS.sig` is staged above because newer installer versions verify the
-manifest signature as well; staging it costs nothing and keeps the mirror
-usable when you update the bootstrap.
+Run `sudo bash ./labpod-install.sh --help` for the full option list.
 
 ## More documentation
 
