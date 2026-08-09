@@ -63,15 +63,12 @@ TAG="${BASE##*/}"
 # BASE must end in the release tag, because the tag is what gets handed to
 # --expected-version below. Catch a tagless BASE here rather than after the
 # download and extraction.
-case "${TAG}" in
-  v[0-9]*.[0-9]*.[0-9]*) ;;
-  *)
-    echo "BASE must end in a release tag, e.g." >&2
-    echo "  https://github.com/LabPod/labpod/releases/download/v0.4.1" >&2
-    echo "(got: ${BASE})" >&2
-    exit 1
-    ;;
-esac
+if [[ ! "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "BASE must end in a release tag, e.g." >&2
+  echo "  https://github.com/LabPod/labpod/releases/download/v0.4.1" >&2
+  echo "(got: ${BASE})" >&2
+  exit 1
+fi
 echo "installing LabPod ${TAG}"
 
 curl -fLO "${BASE}/${TARBALL}"
