@@ -35,136 +35,74 @@ The installer sets up host prerequisites, Podman rootless support, the LabPod
 binary, systemd units, and the GPU container stack. It does not install the
 NVIDIA GPU driver itself.
 
-## Install from the release tarball
+## Install without piping to bash
 
 If your change-control process does not allow `curl | bash`, download the
-release assets first, verify them, extract the tarball, then run the packaged
-installer. This manual tarball flow supports LabPod v0.4.1 or newer; older tags
-do not provide all of the signed assets it verifies.
+public bootstrap to a file, review that file, then execute it. This uses the
+same signature, checksum, archive-member, and temporary-extraction checks as
+the piped installer and the in-app updater, without maintaining a second copy
+of the signing key or verification logic in this README.
 
 ```bash
-# Run the flow in a subshell so a failed verification stops the install
-# without terminating an interactive shell.
-(
-set -e
+curl -fsSL https://labpod.ai/install.sh -o labpod-install.sh
 
-TARBALL="labpod-linux-x86_64.tar.gz"
+# Review the complete script with your normal editor or pager.
+less labpod-install.sh
 
-# Resolve "latest" to a concrete tag once, so every asset comes from the same
-# release even if a new version is published mid-download. Set BASE yourself
-# to pin a v0.4.1-or-newer release instead.
-if [ -z "${BASE:-}" ]; then
-  latest_url="$(curl -fsSL -o /dev/null -w '%{url_effective}' \
-    https://github.com/LabPod/labpod/releases/latest)"
-  BASE="https://github.com/LabPod/labpod/releases/download/${latest_url##*/}"
-fi
-BASE="${BASE%/}"
-TAG="${BASE##*/}"
-# BASE must end in the release tag, because the tag is what gets handed to
-# --expected-version below. Catch a tagless BASE here rather than after the
-# download and extraction.
-printf '%s\n' "${TAG}" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$' || {
-  echo "BASE must end in a release tag, e.g." >&2
-  echo "  https://github.com/LabPod/labpod/releases/download/v0.4.1" >&2
-  echo "(got: ${BASE})" >&2
-  exit 1
-}
-echo "installing LabPod ${TAG}"
+# Check what the installer would do without changing the host.
+sudo bash ./labpod-install.sh --check
 
-curl -fLO "${BASE}/${TARBALL}"
-curl -fLO "${BASE}/${TARBALL}.sig"
-curl -fLO "${BASE}/SHA256SUMS"
-curl -fLO "${BASE}/SHA256SUMS.sig"
-
-cat > labpod-artifact-pub.pem <<'EOF'
------BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEki5c/1B4iOqb16m6ljKHjnbbq5EP
-D8mP4mNRCYrqniXLDAkDFbpGaMw6WqPBiCQUVqyvDzyL+pADdJTAdxcUSw==
------END PUBLIC KEY-----
-EOF
-
-# The signatures are the root of trust, so verify them before reading either
-# file. Both the tarball and the asset manifest are signed with this key.
-openssl dgst -sha256 \
-  -verify labpod-artifact-pub.pem \
-  -signature "${TARBALL}.sig" \
-  "${TARBALL}"
-openssl dgst -sha256 \
-  -verify labpod-artifact-pub.pem \
-  -signature SHA256SUMS.sig \
-  SHA256SUMS
-
-# SHA256SUMS also covers the CLI binaries, which this flow does not download.
-# Read exactly the tarball's entry rather than running `sha256sum -c` over the
-# whole file, so a manifest entry for an unrelated local asset cannot stand in
-# for a missing tarball entry.
-tarball_checksum="$(
-  awk -v f="${TARBALL}" '
-    {
-      sub(/\r$/, "")
-      name = $2
-      sub(/^\*/, "", name)
-      sub(/^.*\//, "", name)
-      if (name == f) {
-        if (count && $1 != hash) conflict = 1
-        count++
-        hash = $1
-      }
-    }
-    END {
-      if (!count) {
-        print "SHA256SUMS has no entry for " f > "/dev/stderr"
-        exit 1
-      }
-      if (conflict) {
-        print "SHA256SUMS has conflicting checksums for " f > "/dev/stderr"
-        exit 1
-      }
-      if (length(hash) != 64 || hash !~ /^[[:xdigit:]]+$/) {
-        print "SHA256SUMS has a malformed SHA-256 for " f > "/dev/stderr"
-        exit 1
-      }
-      print hash
-    }
-  ' SHA256SUMS
-)" || exit 1
-printf '%s  %s\n' "${tarball_checksum}" "${TARBALL}" | sha256sum -c -
-
-# Extract into a new directory so files from an older release cannot survive
-# next to the installer that is about to run.
-mkdir labpod-release || {
-  echo "labpod-release/ already exists; remove it before extracting" >&2
-  exit 1
-}
-tar -xzf "${TARBALL}" -C labpod-release
-
-sudo bash labpod-release/scripts/install.sh --expected-version "${TAG}"
-)
+# Install the latest release.
+sudo bash ./labpod-install.sh
 ```
 
-To pin a supported version, set `BASE` to its release URL before running the
-block above:
+To install a pinned release or pass a host-setup option, add it after the
+script path:
 
 ```bash
-BASE=https://github.com/LabPod/labpod/releases/download/v0.4.1
+sudo bash ./labpod-install.sh --version v0.4.1
+sudo bash ./labpod-install.sh --skip-app
 ```
 
-The packaged installer accepts the host-setup options the curl installer passes
-through, such as `--check`, `--skip-app`, `--skip-socket`, and `--with-hami`:
+## Install from an offline release mirror
+
+For an air-gapped workstation, stage the bootstrap and its four signed release
+assets on a connected Linux machine. Use a concrete tag so every file belongs
+to one immutable release:
 
 ```bash
-sudo bash labpod-release/scripts/install.sh --check
+TAG=v0.4.1
+MIRROR=labpod-offline
+ASSET_DIR="${MIRROR}/download/${TAG}"
+BASE="https://github.com/LabPod/labpod/releases/download/${TAG}"
+
+mkdir -p "${ASSET_DIR}"
+curl -fsSL https://labpod.ai/install.sh -o "${MIRROR}/install.sh"
+for asset in \
+  labpod-linux-x86_64.tar.gz \
+  labpod-linux-x86_64.tar.gz.sig \
+  SHA256SUMS \
+  SHA256SUMS.sig
+do
+  curl -fL "${BASE}/${asset}" -o "${ASSET_DIR}/${asset}"
+done
 ```
 
-`--version` is not among them: the curl front-end consumes that flag itself to
-choose which release to download, and a release tarball is already one specific
-release. The packaged installer rejects unknown options with
-`unknown arg: --version` and exit status 2. The block instead passes the tag it
-resolved to `--expected-version`, which confirms that the bundled binary reports
-the intended release before installation.
+Transfer the whole `labpod-offline/` directory to the workstation, review
+`install.sh`, then point that same bootstrap at the local mirror:
 
-Run `sudo bash labpod-release/scripts/install.sh --help` for the full option
-list.
+```bash
+TAG=v0.4.1
+MIRROR="$(realpath labpod-offline)"
+
+sudo env LABPOD_BOOTSTRAP_RELEASES_BASE="file://${MIRROR}" \
+  bash "${MIRROR}/install.sh" --version "${TAG}"
+```
+
+The bootstrap verifies both detached ECDSA-P256 signatures before relying on
+`SHA256SUMS`, checks the archive against the authenticated manifest, validates
+archive members, extracts into a temporary directory, and only then runs the
+packaged installer.
 
 ## More documentation
 
