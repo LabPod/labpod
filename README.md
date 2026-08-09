@@ -99,10 +99,15 @@ sudo env LABPOD_BOOTSTRAP_RELEASES_BASE="file://${MIRROR}" \
   bash "${MIRROR}/install.sh" --version "${TAG}"
 ```
 
-The bootstrap verifies both detached ECDSA-P256 signatures before relying on
-`SHA256SUMS`, checks the archive against the authenticated manifest, validates
+The bootstrap verifies the release archive against its detached ECDSA-P256
+signature, checks the archive against its `SHA256SUMS` entry, validates the
 archive members, extracts into a temporary directory, and only then runs the
-packaged installer.
+packaged installer. Because it reads a single manifest entry and rebuilds the
+line it checks, the archive's own signature is what establishes authenticity.
+
+`SHA256SUMS.sig` is staged above because newer installer versions verify the
+manifest signature as well; staging it costs nothing and keeps the mirror
+usable when you update the bootstrap.
 
 ## More documentation
 
