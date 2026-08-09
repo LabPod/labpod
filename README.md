@@ -48,8 +48,6 @@ curl -fLO "${BASE}/labpod-linux-x86_64.tar.gz"
 curl -fLO "${BASE}/labpod-linux-x86_64.tar.gz.sig"
 curl -fLO "${BASE}/SHA256SUMS"
 
-sha256sum -c SHA256SUMS
-
 cat > labpod-artifact-pub.pem <<'EOF'
 -----BEGIN PUBLIC KEY-----
 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEki5c/1B4iOqb16m6ljKHjnbbq5EP
@@ -57,12 +55,18 @@ D8mP4mNRCYrqniXLDAkDFbpGaMw6WqPBiCQUVqyvDzyL+pADdJTAdxcUSw==
 -----END PUBLIC KEY-----
 EOF
 
+# The signature is the root of trust for the tarball, so verify it first.
 openssl dgst -sha256 \
   -verify labpod-artifact-pub.pem \
   -signature labpod-linux-x86_64.tar.gz.sig \
   labpod-linux-x86_64.tar.gz
 
-mkdir labpod-release
+# SHA256SUMS also covers the CLI binaries, which this flow does not download.
+# --ignore-missing scopes the check to the files you actually fetched; it still
+# fails if the tarball's hash is wrong or its entry is absent.
+sha256sum --ignore-missing -c SHA256SUMS
+
+mkdir -p labpod-release
 tar -xzf labpod-linux-x86_64.tar.gz -C labpod-release
 
 sudo bash labpod-release/scripts/install.sh
@@ -70,13 +74,19 @@ sudo bash labpod-release/scripts/install.sh
 
 To install a pinned version from tarball assets, set `BASE` to a versioned
 release URL such as
-`https://github.com/LabPod/labpod/releases/download/v0.1.0`.
+`https://github.com/LabPod/labpod/releases/download/v0.4.1`.
 
-You can pass the same installer options after the script path, for example:
+The packaged installer accepts the same host-setup options as the curl
+installer, for example:
 
 ```bash
 sudo bash labpod-release/scripts/install.sh --check
 ```
+
+`--version` is not one of them. It is consumed by the curl front-end, which
+uses it to choose which release to download; a release tarball is already a
+pinned version, so the packaged installer has nothing to resolve. Run
+`sudo bash labpod-release/scripts/install.sh --help` for its full option list.
 
 ## More documentation
 
