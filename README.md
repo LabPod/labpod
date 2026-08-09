@@ -39,8 +39,8 @@ NVIDIA GPU driver itself.
 
 If your change-control process does not allow `curl | bash`, download the
 release assets first, verify them, extract the tarball, then run the packaged
-installer. This flow installs the latest release; older tags predate some of
-the signed assets it verifies.
+installer. This manual tarball flow supports LabPod v0.4.1 or newer; older tags
+do not provide all of the signed assets it verifies.
 
 ```bash
 # Run the flow in a subshell so a failed verification stops the install
@@ -50,13 +50,16 @@ set -e
 
 TARBALL="labpod-linux-x86_64.tar.gz"
 
-# Resolve "latest" to a concrete tag once, so every asset below comes from the
-# same release even if a new version is published mid-download. The resolved
-# tag is printed so you can record which release this host received.
-latest_url="$(curl -fsSL -o /dev/null -w '%{url_effective}' \
-  https://github.com/LabPod/labpod/releases/latest)"
-TAG="${latest_url##*/}"
-BASE="https://github.com/LabPod/labpod/releases/download/${TAG}"
+# Resolve "latest" to a concrete tag once, so every asset comes from the same
+# release even if a new version is published mid-download. Set BASE yourself
+# to pin a v0.4.1-or-newer release instead.
+if [ -z "${BASE:-}" ]; then
+  latest_url="$(curl -fsSL -o /dev/null -w '%{url_effective}' \
+    https://github.com/LabPod/labpod/releases/latest)"
+  BASE="https://github.com/LabPod/labpod/releases/download/${latest_url##*/}"
+fi
+BASE="${BASE%/}"
+TAG="${BASE##*/}"
 echo "installing LabPod ${TAG}"
 
 curl -fLO "${BASE}/${TARBALL}"
@@ -126,8 +129,15 @@ mkdir labpod-release || {
 }
 tar -xzf "${TARBALL}" -C labpod-release
 
-sudo bash labpod-release/scripts/install.sh
+sudo bash labpod-release/scripts/install.sh --expected-version "${TAG}"
 )
+```
+
+To pin a supported version, set `BASE` to its release URL before running the
+block above:
+
+```bash
+BASE=https://github.com/LabPod/labpod/releases/download/v0.4.1
 ```
 
 The packaged installer accepts the host-setup options the curl installer passes
@@ -140,13 +150,9 @@ sudo bash labpod-release/scripts/install.sh --check
 `--version` is not among them: the curl front-end consumes that flag itself to
 choose which release to download, and a release tarball is already one specific
 release. The packaged installer rejects unknown options with
-`unknown arg: --version` and exit status 2. To have it confirm which release it
-is installing, pass the tag the block printed to `--expected-version`, which
-checks that the bundled binary reports that tag:
-
-```bash
-sudo bash labpod-release/scripts/install.sh --expected-version v0.4.1
-```
+`unknown arg: --version` and exit status 2. The block instead passes the tag it
+resolved to `--expected-version`, which confirms that the bundled binary reports
+the intended release before installation.
 
 Run `sudo bash labpod-release/scripts/install.sh --help` for the full option
 list.
