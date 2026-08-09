@@ -42,6 +42,11 @@ release assets first, verify them, extract the tarball, then run the packaged
 installer:
 
 ```bash
+# Run the flow in a subshell so a failed verification stops the install
+# without terminating an interactive shell.
+(
+set -e
+
 BASE="https://github.com/LabPod/labpod/releases/latest/download"
 
 curl -fLO "${BASE}/labpod-linux-x86_64.tar.gz"
@@ -89,6 +94,7 @@ mkdir -p labpod-release
 tar -xzf labpod-linux-x86_64.tar.gz -C labpod-release
 
 sudo bash labpod-release/scripts/install.sh
+)
 ```
 
 To install a pinned version from tarball assets, set `BASE` to a versioned
