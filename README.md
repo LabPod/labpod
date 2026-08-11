@@ -37,6 +37,47 @@ embedded in the script, and runs the packaged installer. Options, pinned
 releases, and the change-control flow that avoids piping into a shell are
 documented in the install guide: https://docs.labpod.ai/operators/install/
 
+## Review-first and offline installation
+
+For v0.5.1 and newer, an operator can verify and extract a release as a regular
+user before granting its installer root access. A fully offline host must have
+the prerequisites from the install guide pre-provisioned, including rootless
+Podman support and `nvidia-ctk` when an NVIDIA driver is present.
+
+On a connected staging host, copy `https://labpod.ai/install.sh` and these four
+assets from one release tag into `<mirror>/download/<tag>/`:
+
+- `labpod-linux-x86_64.tar.gz`
+- `labpod-linux-x86_64.tar.gz.sig`
+- `SHA256SUMS`
+- `SHA256SUMS.sig`
+
+Transfer that mirror to the offline host, then verify and extract the exact tag
+without root:
+
+```bash
+version=v0.5.1
+mirror=/media/labpod-releases
+review_dir="$PWD/labpod-$version"
+
+LABPOD_BOOTSTRAP_RELEASES_BASE="file://$mirror" \
+  bash "$mirror/install.sh" --version "$version" --extract-only "$review_dir"
+```
+
+Review the entire extracted tree, especially `scripts/install.sh` and
+`deploy/`, before running it as root:
+
+```bash
+sudo "$review_dir/scripts/install.sh" --offline \
+  --release-mirror "file://$mirror" --skip-gpu-verify
+```
+
+Omit `--skip-gpu-verify` only when the documented CUDA probe image is already
+in the target user's local Podman store. `--release-mirror` is saved in the
+root-owned install layout, so later in-app update applies use the same
+versioned mirror. Release discovery is separate: leave automatic checks off on
+an air-gapped host or configure the documented local metadata endpoint.
+
 ## More documentation
 
 - Install guide: https://docs.labpod.ai/operators/install/
